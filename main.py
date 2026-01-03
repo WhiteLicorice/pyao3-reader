@@ -15,7 +15,7 @@ async def main(page: ft.Page) -> None:
     """
     # Setup Page
     page.title = "PyAo3"
-    page.theme_mode = ft.ThemeMode.LIGHT
+    page.theme_mode = ft.ThemeMode.SYSTEM
     page.scroll = ft.ScrollMode.AUTO
     page.padding = 0  # Padding is handled by internal containers for better control
 
@@ -24,11 +24,11 @@ async def main(page: ft.Page) -> None:
     
     # 1. Loading Indicator
     # Using alignment and expand to center the ring in the viewport
-    loading: ft.Container = ft.Container(
+    loading = ft.Container(
         content=ft.Column(
             [
                 ft.ProgressRing(width=50, height=50, stroke_width=4),
-                ft.Text("Downloading formatted content...", italic=True)
+                ft.Text("We're downloading your fic...", italic=True)
             ], 
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             alignment=ft.MainAxisAlignment.CENTER
@@ -39,9 +39,9 @@ async def main(page: ft.Page) -> None:
     page.add(loading)
 
     # 2. Fetch Data
+    # TODO: Make this dynamic.
     work_url: str = "https://archiveofourown.org/works/76968931"
     
-    # fetch_formatted_chapters returns List[ChapterData]
     chapters: List[ChapterData] = await fetcher.fetch_formatted_chapters(work_url)
     
     # Process the first chapter for display
@@ -66,7 +66,7 @@ async def main(page: ft.Page) -> None:
                 ft.Markdown(
                     value=first_chapter_md,
                     selectable=True,
-                    extension_set=ft.MarkdownExtensionSet.GITHUB_WEB,
+                    extension_set=ft.MarkdownExtensionSet.GITHUB_FLAVORED,
                     # Ensure markdown text wraps and fills its container
                     expand=True,
                     md_style_sheet=ft.MarkdownStyleSheet(

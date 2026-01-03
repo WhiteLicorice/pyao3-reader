@@ -1,7 +1,6 @@
 import asyncio
-import flet as ft
-from typing import List
 from fanficfare import adapters, configurable
+from fanficfare.adapters import base_adapter
 from models.ao3_types import ChapterData
 
 class FetcherService:
@@ -22,9 +21,8 @@ use_view_full_work: true
         """
         self.config.read_string(personal_settings)
 
-    async def fetch_formatted_chapters(self, url: str) -> List[ChapterData]:
+    async def fetch_formatted_chapters(self, url: str) -> list[ChapterData]:
         """Asynchronously fetches and formats chapters from a given AO3 URL.
-
         Args:
             url: The full URL of the AO3 work or chapter.
 
@@ -33,23 +31,21 @@ use_view_full_work: true
         """
         return await asyncio.to_thread(self._sync_fetch, url)
 
-    def _sync_fetch(self, url: str) -> List[ChapterData]:
+    def _sync_fetch(self, url: str) -> list[ChapterData]:
         """Synchronous internal method to handle the FanFicFare adapter lifecycle.
-ao3_types
         Args:
             url: The URL to fetch.
 
         Returns:
-            List of processed chapters.
+            list of processed chapters.
         """
-        adapter = adapters.getAdapter(self.config, url)
+        adapter: base_adapter.BaseSiteAdapter = adapters.getAdapter(self.config, url)
         adapter.extractChapterUrlsAndMetadata()
         
-        fetched_chapters = adapter.get_chapters()
-        chapters_data: List[ChapterData] = []
+        fetched_chapters: list[dict[str, str]] = adapter.get_chapters()
+        chapters_data: list[ChapterData] = []
         
         for i, chapter in enumerate(fetched_chapters):
-            # adapter.get_chapters() returns objects that support dict-like access
             chapter_url: str = chapter['url']
             chapter_title: str = chapter['title']
             
@@ -57,7 +53,7 @@ ao3_types
             chapter_html: str = adapter.getChapterTextNum(chapter_url, i)
             
             chapters_data.append({
-                "index": i + 1,
+                "index": i,
                 "title": chapter_title,
                 "html": chapter_html
             })

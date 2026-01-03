@@ -5,6 +5,6 @@ AuthorList = List[str]
 
 class ChapterData(TypedDict):
     """Represents the structured data for a single fanfiction chapter."""
-    index: int
+    index: int # begins at 0
     title: str
     html: str
