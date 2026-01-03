@@ -1,7 +1,7 @@
 import asyncio
 from typing import List
-from fanficfare import adapters, configurable
-from fanficfare.adapters import base_adapter
+from fanficfare import adapters, configurable # type: ignore
+from fanficfare.adapters import base_adapter # type: ignore
 from .content_service import ContentService
 from models.ao3_types import ChapterData
 
