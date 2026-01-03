@@ -9,17 +9,20 @@ async def main(page: ft.Page) -> None:
     # 1. Page Configuration
     page.title = "PyAo3 Reader"
     page.theme_mode = ft.ThemeMode.SYSTEM
-    #page.theme = ft.Theme(color_scheme_seed=ft.Colors.BLUE_GREY)
     page.scroll = ft.ScrollMode.HIDDEN
     page.padding = 0
+    
+    # Set alignment to center for the loading screen?
+    page.vertical_alignment = ft.CrossAxisAlignment.CENTER
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
     page.fonts = {
         "serif": "https://github.com/google/fonts/raw/main/ofl/merriweather/Merriweather-Regular.ttf"
     }
 
     # 2. UI State References
-    reader_title: ft.Text = ft.Text("", size=28, weight=ft.FontWeight.BOLD, font_family="serif")
-    reader_markdown: ft.Markdown = ft.Markdown(
+    reader_title = ft.Text("", size=28, weight=ft.FontWeight.BOLD, font_family="serif")
+    reader_markdown = ft.Markdown(
         value="",
         selectable=True,
         extension_set=ft.MarkdownExtensionSet.GITHUB_FLAVORED,
@@ -45,43 +48,38 @@ async def main(page: ft.Page) -> None:
         index = int(e.control.selected_index)
         await update_chapter_view(chapters[index])
         await page.close_drawer()
-        page.update()
 
     async def toggle_drawer(e: ft.ControlEvent) -> None:
         """Uses awaited coroutine to open the drawer."""
         await page.show_drawer()
 
     # 4. Loading UI
-    loading_view: ft.Container = ft.Container(
-        content=ft.Column(
-            [
-                ft.ProgressRing(width=40, stroke_width=3),
-                ft.Text("Fetching work...", size=14, italic=True)
-            ], 
-            horizontal_alignment=ft.CrossAxisAlignment.CENTER,
-            alignment=ft.MainAxisAlignment.CENTER
-        ),
-        expand=True,
-        alignment=ft.alignment.Alignment.CENTER
+    loading_view = ft.Column(
+        [
+            ft.ProgressRing(width=40, stroke_width=3),
+            ft.Text("Fetching work...", size=14, italic=True)
+        ], 
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
     )
+    
     page.add(loading_view)
     page.update()
 
     try:
         # 5. Data Fetching
-        fetcher: FetcherService = FetcherService()
-        work_url: str = "https://archiveofourown.org/works/71840866"
+        fetcher = FetcherService()
+        work_url = "https://archiveofourown.org/works/71840866"
         chapters: List[ChapterData] = await fetcher.fetch_formatted_chapters(work_url)
 
-        # 6. Build Navigation Drawer
-        drawer_items: List[ft.NavigationDrawerDestination] = [
+        drawer_items = [
             ft.NavigationDrawerDestination(
-                label=f"{c['title']}",
+                label=c['title'],
                 icon=ft.icons.Icons.BOOK_OUTLINED,
                 selected_icon=ft.icons.Icons.BOOK,
             ) for c in chapters
         ]
 
+        # 6. Build the NavigationDrawer
         page.drawer = ft.NavigationDrawer(
             controls=[
                 ft.Container(height=12),
@@ -94,26 +92,21 @@ async def main(page: ft.Page) -> None:
 
         # 7. Build App Bar
         page.appbar = ft.AppBar(
-            leading=ft.IconButton(
-                ft.icons.Icons.MENU, 
-                on_click=toggle_drawer
-            ),
+            leading=ft.IconButton(ft.icons.Icons.MENU, on_click=toggle_drawer),
             title=ft.Text("PyAo3 Reader"),
             center_title=False,
             bgcolor=ft.Colors.SURFACE,
-            actions=[
-                ft.IconButton(ft.icons.Icons.SETTINGS_OUTLINED),
-            ]
+            actions=[ft.IconButton(ft.icons.Icons.SETTINGS_OUTLINED)]
         )
 
         # 8. Setup Reader Layout
-        reader_column: ft.Column = ft.Column(
+        reader_column = ft.Column(
             [reader_title, ft.Divider(height=30), reader_markdown],
             scroll=ft.ScrollMode.ALWAYS,
             expand=True,
         )
 
-        reader_container: ft.Container = ft.Container(
+        reader_container = ft.Container(
             content=reader_column,
             padding=ft.Padding.only(left=20, right=20, top=30, bottom=40),
             width=800,
@@ -122,11 +115,14 @@ async def main(page: ft.Page) -> None:
 
         # 9. Final Render
         page.controls.remove(loading_view)
+        # Reset alignment to top for the actual reader
+        page.vertical_alignment = ft.MainAxisAlignment.START
+        page.horizontal_alignment = ft.CrossAxisAlignment.START
+        
         page.add(
             ft.Row([reader_container], alignment=ft.MainAxisAlignment.CENTER, expand=True)
         )
         
-        # Initialize first view
         await update_chapter_view(chapters[0])
 
     except Exception as e:
