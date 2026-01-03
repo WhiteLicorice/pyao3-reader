@@ -12,8 +12,8 @@ async def main(page: ft.Page) -> None:
     page.scroll = ft.ScrollMode.HIDDEN
     page.padding = 0
     
-    # Set alignment to center for the loading screen?
-    page.vertical_alignment = ft.CrossAxisAlignment.CENTER
+    # Set alignment to center for the loading screen (Middle of the page)
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
     page.fonts = {
@@ -22,6 +22,7 @@ async def main(page: ft.Page) -> None:
 
     # 2. UI State References
     reader_title = ft.Text("", size=28, weight=ft.FontWeight.BOLD, font_family="serif")
+    
     reader_markdown = ft.Markdown(
         value="",
         selectable=True,
@@ -30,6 +31,16 @@ async def main(page: ft.Page) -> None:
         md_style_sheet=ft.MarkdownStyleSheet(
             p_text_style=ft.TextStyle(size=18, height=1.6, font_family="serif"),
             h1_text_style=ft.TextStyle(size=24, weight=ft.FontWeight.BOLD),
+            # Fixes for "odd boxes" in Dark Mode using BoxDecoration
+            blockquote_text_style=ft.TextStyle(italic=True, color=ft.Colors.GREY_400),
+            blockquote_padding=ft.padding.only(left=20, top=5, bottom=5),
+            blockquote_decoration=ft.BoxDecoration(
+                border=ft.border.only(left=ft.BorderSide(4, ft.Colors.BLUE_GREY_700))
+            ),
+            codeblock_decoration=ft.BoxDecoration(
+                bgcolor=ft.Colors.with_opacity(0.1, ft.Colors.BLUE_GREY_100),
+                border_radius=ft.border_radius.all(4),
+            ),
         )
     )
 
