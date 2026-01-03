@@ -3,7 +3,8 @@ from typing import List
 from fanficfare import adapters, configurable # type: ignore
 from fanficfare.adapters import base_adapter # type: ignore
 from .content_service import ContentService
-from models.ao3_types import ChapterData
+from models.ao3_types import ChapterData, RawChapter
+import html
 
 class FetcherService:
     """Handles interaction with FanFicFare adapters to fetch AO3 data."""
@@ -30,20 +31,22 @@ use_view_full_work: true
         adapter: base_adapter.BaseSiteAdapter = adapters.getAdapter(self.config, url)
         adapter.extractChapterUrlsAndMetadata()
         
-        fetched_chapters = adapter.get_chapters()
+        fetched_chapters: list[RawChapter] = adapter.get_chapters()
         chapters_data: List[ChapterData] = []
         
         for i, chapter in enumerate(fetched_chapters):
-            html: str = adapter.getChapterTextNum(chapter['url'], i)
+            # The raw string as is in HTML.
+            html_string: str = adapter.getChapterTextNum(chapter['url'], i)
             
             # Convert to Markdown HERE, in the background thread.
             # This prevents the UI from stuttering when rendering large chapters.
-            md_content: str = ContentService.clean_html_for_flet(html)
+            # Automatically unescapes.
+            md_content: str = ContentService.clean_html_for_flet(html_string)
             
             chapters_data.append({
                 "index": i,
-                "title": chapter['title'],
-                "html": html,
+                "title": html.unescape(chapter['title']),
+                "html": html_string,
                 "markdown": md_content
             })
             

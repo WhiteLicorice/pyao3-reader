@@ -9,3 +9,8 @@ class ChapterData(TypedDict):
     title: str
     html: str
     markdown: str  # Pre-processed for the UI
+    
+class RawChapter(TypedDict):
+    """Represents dictionaries of chapter title, chapter url."""
+    title: str
+    url: str
