@@ -1,6 +1,8 @@
 import asyncio
+from typing import List
 from fanficfare import adapters, configurable
 from fanficfare.adapters import base_adapter
+from .content_service import ContentService
 from models.ao3_types import ChapterData
 
 class FetcherService:
@@ -9,9 +11,7 @@ class FetcherService:
     def __init__(self) -> None:
         """Initializes the FanFicFare configuration with AO3 defaults."""
         self.config = configurable.Configuration(["archiveofourown.org"], "html")
-        
-        # INI-formatted string for internal ConfigParser
-        personal_settings: str = """
+        settings: str = """
 [defaults]
 is_adult: true
 keep_html_attrs: class,id,style
@@ -19,43 +19,32 @@ user_agent: pyao3-reader
 slow_down_sleep_time: 2
 use_view_full_work: true
         """
-        self.config.read_string(personal_settings)
+        self.config.read_string(settings)
 
-    async def fetch_formatted_chapters(self, url: str) -> list[ChapterData]:
-        """Asynchronously fetches and formats chapters from a given AO3 URL.
-        Args:
-            url: The full URL of the AO3 work or chapter.
-
-        Returns:
-            A list of ChapterData dictionaries containing titles and HTML content.
-        """
+    async def fetch_formatted_chapters(self, url: str) -> List[ChapterData]:
+        """Asynchronously fetches and pre-processes chapters."""
+        # We run the whole sync block in a thread to keep the UI responsive
         return await asyncio.to_thread(self._sync_fetch, url)
 
-    def _sync_fetch(self, url: str) -> list[ChapterData]:
-        """Synchronous internal method to handle the FanFicFare adapter lifecycle.
-        Args:
-            url: The URL to fetch.
-
-        Returns:
-            list of processed chapters.
-        """
+    def _sync_fetch(self, url: str) -> List[ChapterData]:
         adapter: base_adapter.BaseSiteAdapter = adapters.getAdapter(self.config, url)
         adapter.extractChapterUrlsAndMetadata()
         
-        fetched_chapters: list[dict[str, str]] = adapter.get_chapters()
-        chapters_data: list[ChapterData] = []
+        fetched_chapters = adapter.get_chapters()
+        chapters_data: List[ChapterData] = []
         
         for i, chapter in enumerate(fetched_chapters):
-            chapter_url: str = chapter['url']
-            chapter_title: str = chapter['title']
+            html: str = adapter.getChapterTextNum(chapter['url'], i)
             
-            # getChapterTextNum is the OTW-specific method for content retrieval
-            chapter_html: str = adapter.getChapterTextNum(chapter_url, i)
+            # Convert to Markdown HERE, in the background thread.
+            # This prevents the UI from stuttering when rendering large chapters.
+            md_content: str = ContentService.clean_html_for_flet(html)
             
             chapters_data.append({
                 "index": i,
-                "title": chapter_title,
-                "html": chapter_html
+                "title": chapter['title'],
+                "html": html,
+                "markdown": md_content
             })
             
         return chapters_data
