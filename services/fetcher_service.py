@@ -1,7 +1,7 @@
 import asyncio
-from typing import List
-from fanficfare import adapters, configurable # type: ignore
-from fanficfare.adapters import base_adapter # type: ignore
+from typing import List, Optional
+from fanficfare import adapters, configurable
+from fanficfare.adapters import base_adapter
 from .content_service import ContentService
 from models.ao3_types import ChapterData, RawChapter
 import html
@@ -21,33 +21,37 @@ slow_down_sleep_time: 2
 use_view_full_work: true
         """
         self.config.read_string(settings)
+        self.adapter: Optional[base_adapter.BaseSiteAdapter] = None
+        self.raw_chapters: List[RawChapter] = []
 
-    async def fetch_formatted_chapters(self, url: str) -> List[ChapterData]:
-        """Asynchronously fetches and pre-processes chapters."""
-        # We run the whole sync block in a thread to keep the UI responsive
-        return await asyncio.to_thread(self._sync_fetch, url)
+    async def fetch_metadata(self, url: str) -> List[ChapterData]:
+        """Initial crawl to get chapter titles and URLs."""
+        return await asyncio.to_thread(self._sync_fetch_metadata, url)
 
-    def _sync_fetch(self, url: str) -> List[ChapterData]:
-        adapter: base_adapter.BaseSiteAdapter = adapters.getAdapter(self.config, url)
-        adapter.extractChapterUrlsAndMetadata()
+    def _sync_fetch_metadata(self, url: str) -> List[ChapterData]:
+        self.adapter = adapters.getAdapter(self.config, url)
+        self.adapter.extractChapterUrlsAndMetadata()
+        self.raw_chapters = self.adapter.get_chapters()
         
-        fetched_chapters: list[RawChapter] = adapter.get_chapters()
-        chapters_data: List[ChapterData] = []
-        
-        for i, chapter in enumerate(fetched_chapters):
-            # The raw string as is in HTML.
-            html_string: str = adapter.getChapterTextNum(chapter['url'], i)
-            
-            # Convert to Markdown HERE, in the background thread.
-            # This prevents the UI from stuttering when rendering large chapters.
-            # Automatically unescapes.
-            md_content: str = ContentService.clean_html_for_flet(html_string)
-            
-            chapters_data.append({
+        # Return skeleton data (no markdown yet)
+        return [
+            {
                 "index": i,
-                "title": html.unescape(chapter['title']),
-                "html": html_string,
-                "markdown": md_content
-            })
-            
-        return chapters_data
+                "title": html.unescape(c['title']),
+                "html": "",
+                "markdown": "" # Empty indicates not loaded
+            }
+            for i, c in enumerate(self.raw_chapters)
+        ]
+
+    async def fetch_single_chapter(self, index: int) -> str:
+        """Fetch and format a specific chapter on demand."""
+        if not self.adapter:
+            raise Exception("Adapter not initialized. Call fetch_metadata first.")
+        
+        return await asyncio.to_thread(self._sync_fetch_chapter, index)
+
+    def _sync_fetch_chapter(self, index: int) -> str:
+        chapter_url = self.raw_chapters[index]['url']
+        html_string = self.adapter.getChapterTextNum(chapter_url, index)
+        return ContentService.clean_html_for_flet(html_string)
