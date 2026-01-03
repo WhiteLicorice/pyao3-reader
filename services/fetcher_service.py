@@ -1,13 +1,18 @@
 import asyncio
+import flet as ft
+from typing import List
 from fanficfare import adapters, configurable
 from models.ao3_types import ChapterData
 
 class FetcherService:
-    def __init__(self):
+    """Handles interaction with FanFicFare adapters to fetch AO3 data."""
+
+    def __init__(self) -> None:
+        """Initializes the FanFicFare configuration with AO3 defaults."""
         self.config = configurable.Configuration(["archiveofourown.org"], "html")
         
-        # TODO: Migrate into a fetcher.ini.
-        personal_settings = """
+        # INI-formatted string for internal ConfigParser
+        personal_settings: str = """
 [defaults]
 is_adult: true
 keep_html_attrs: class,id,style
@@ -17,32 +22,39 @@ use_view_full_work: true
         """
         self.config.read_string(personal_settings)
 
-    async def fetch_formatted_chapters(self, url: str) -> list[ChapterData]:
+    async def fetch_formatted_chapters(self, url: str) -> List[ChapterData]:
+        """Asynchronously fetches and formats chapters from a given AO3 URL.
+
+        Args:
+            url: The full URL of the AO3 work or chapter.
+
+        Returns:
+            A list of ChapterData dictionaries containing titles and HTML content.
+        """
         return await asyncio.to_thread(self._sync_fetch, url)
 
-    def _sync_fetch(self, url: str) -> list[ChapterData]:
+    def _sync_fetch(self, url: str) -> List[ChapterData]:
+        """Synchronous internal method to handle the FanFicFare adapter lifecycle.
+ao3_types
+        Args:
+            url: The URL to fetch.
+
+        Returns:
+            List of processed chapters.
+        """
         adapter = adapters.getAdapter(self.config, url)
-        
-        # 1. This triggers the OTW/AO3 specific scraping logic
         adapter.extractChapterUrlsAndMetadata()
         
-        # 2. Get the list of chapter objects using the getter method
-        # These objects typically have 'title' and 'url' attributes
         fetched_chapters = adapter.get_chapters()
+        chapters_data: List[ChapterData] = []
         
-        chapters_data = []
-        
-        # 3. Iterate through the chapters
         for i, chapter in enumerate(fetched_chapters):
-            # BaseOTWAdapter's getChapterTextNum requires the URL and the 0-based index
-            # Note: chapter['url'] works if it's a dict, or chapter.url if it's an object. 
-            # FFF usually returns objects with a __getitem__ fallback.
-            chapter_url = chapter['url']
-            chapter_title = chapter['title']
+            # adapter.get_chapters() returns objects that support dict-like access
+            chapter_url: str = chapter['url']
+            chapter_title: str = chapter['title']
             
-            # This calls the method you see in the BaseOTWAdapter source
-            # It handles the view_full_work logic automatically
-            chapter_html = adapter.getChapterTextNum(chapter_url, i)
+            # getChapterTextNum is the OTW-specific method for content retrieval
+            chapter_html: str = adapter.getChapterTextNum(chapter_url, i)
             
             chapters_data.append({
                 "index": i + 1,

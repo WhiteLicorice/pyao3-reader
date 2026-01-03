@@ -1,9 +1,10 @@
-from typing import TypedDict
+from typing import TypedDict, List, Union
 
-type WorkID = int | str
-type AuthorList = list[str]
+WorkID = Union[int, str]
+AuthorList = List[str]
 
 class ChapterData(TypedDict):
+    """Represents the structured data for a single fanfiction chapter."""
     index: int
     title: str
     html: str
