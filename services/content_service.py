@@ -1,7 +1,7 @@
 from markdownify import markdownify as md
 
 class ContentService:
-    """Service for processing and cleaning content for UI display."""
+    """Stateless service for processing and cleaning content for UI display."""
 
     @staticmethod
     def clean_html_for_flet(html_content: str) -> str:

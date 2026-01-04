@@ -1,13 +1,13 @@
 import flet as ft
 from services.fetcher_service import FetcherService
-from models.ao3_types import ChapterData
+from models.ao3_types import Ao3Story, Ao3Chapter
 
 async def main(page: ft.Page) -> None:
     """
     Entry point for the pyao3 reader application.
     
     Initializes the page layout, sets up the central reader interface,
-    and spawns the background task to fetch novel metadata.
+    and spawns the background task to fetch the Ao3Story and its metadata.
     """
     page.title = "pyao3"
     page.theme_mode = ft.ThemeMode.SYSTEM
@@ -20,7 +20,8 @@ async def main(page: ft.Page) -> None:
         "serif": "https://github.com/google/fonts/raw/main/ofl/merriweather/Merriweather-Regular.ttf"
     }
 
-    chapters: list[ChapterData] = []
+    # App State
+    current_story: Ao3Story | None = None
     fetcher: FetcherService = FetcherService()
 
     loading_ring: ft.Container = ft.Container(
@@ -35,7 +36,9 @@ async def main(page: ft.Page) -> None:
         weight=ft.FontWeight.BOLD, 
         font_family="serif"
     )
+    
     reader_divider: ft.Divider = ft.Divider(height=30)
+    
     reader_markdown: ft.Markdown = ft.Markdown(
         value="",
         selectable=False,
@@ -65,15 +68,17 @@ async def main(page: ft.Page) -> None:
 
     async def update_chapter_view(index: int) -> None:
         """
-        Loads and renders the content for a specific chapter index.
+        Loads and renders the content for a specific Ao3Chapter.
         
-        Checks if the chapter content is cached in memory. If not, fetches it
-        asynchronously, caches it, and then updates the UI.
+        If the chapter markdown is missing, it triggers an async fetch through 
+        the FetcherService and updates the local story state.
         """
-        chapter: ChapterData = chapters[index]
+        if not current_story:
+            return
 
-        if not chapter["markdown"]:
-            # Transition to loading state
+        chapter: Ao3Chapter = current_story.chapters[index]
+
+        if not chapter.markdown:
             loading_ring.visible = True
             reader_title.visible = False
             reader_divider.visible = False
@@ -81,8 +86,8 @@ async def main(page: ft.Page) -> None:
             page.update()
 
             try:
-                md_content: str = await fetcher.fetch_single_chapter(index)
-                chapters[index]["markdown"] = md_content
+                # fetch_chapter_content mutates the chapter object internally
+                await fetcher.fetch_chapter_content(index)
             except Exception as e:
                 loading_ring.visible = False
                 reader_markdown.visible = True
@@ -90,49 +95,46 @@ async def main(page: ft.Page) -> None:
                 page.update()
                 return
 
-        # Render content
         loading_ring.visible = False
         reader_title.visible = True
         reader_divider.visible = True
         reader_markdown.visible = True
 
-        reader_title.value = chapters[index]["title"]
-        reader_markdown.value = chapters[index]["markdown"]
+        reader_title.value = chapter.title
+        reader_markdown.value = chapter.markdown
 
         page.update()
-        
-        # Reset scroll position to top when changing chapters
-        await reader_column.scroll_to(offset=0, duration=300)
+        await reader_column.scroll_to(offset=0, duration=0)
 
     async def on_chapter_select(e: ft.ControlEvent) -> None:
-        """Callback for the NavigationDrawer to switch chapters."""
-        index: int = int(e.control.selected_index)
+        """Handles chapter selection from the NavigationDrawer."""
+        index: int = int(e.control.selected_index) # magic property, ugh
         await page.close_drawer()
         await update_chapter_view(index)
 
     async def toggle_drawer(e: ft.ControlEvent) -> None:
-        """Callback for the AppBar menu button to open the drawer."""
+        """Opens the NavigationDrawer."""
         await page.show_drawer()
 
     async def load_content_task() -> None:
         """
-        Background initialization task.
+        Fetches the complete Ao3Story metadata and initializes the UI components.
         
-        Fetches the Work metadata, builds the NavigationDrawer, and sets up 
-        the main reading layout once data is ready.
+        Builds the NavigationDrawer from the story's chapter list and sets the 
+        AppBar title to match the story metadata.
         """
-        nonlocal chapters
+        nonlocal current_story
         try:
             # TODO: Make dynamic.
             work_url: str = "https://archiveofourown.org/works/71840866"
-            chapters = await fetcher.fetch_metadata(work_url)
+            current_story = await fetcher.fetch_story(work_url)
 
             drawer_items: list[ft.NavigationDrawerDestination] = [
                 ft.NavigationDrawerDestination(
-                    label=c['title'],
+                    label=chap.title,
                     icon=ft.icons.Icons.BOOK_OUTLINED,
                     selected_icon=ft.icons.Icons.BOOK,
-                ) for c in chapters
+                ) for chap in current_story.chapters
             ]
 
             page.drawer = ft.NavigationDrawer(
@@ -147,18 +149,17 @@ async def main(page: ft.Page) -> None:
 
             page.appbar = ft.AppBar(
                 leading=ft.IconButton(ft.icons.Icons.MENU, on_click=toggle_drawer),
-                title=ft.Text("pyao3"),
+                title=ft.Text(current_story.title),
                 bgcolor=ft.Colors.SURFACE,
             )
 
-            # Clear loading screen and build main UI
             page.controls.clear()
             page.vertical_alignment = ft.MainAxisAlignment.START
             page.horizontal_alignment = ft.CrossAxisAlignment.START
             
-            # We wrap the container in a Row with alignment=CENTER
-            # to horizontally center the reading view on wide screens (desktop/tablet)
-            # while maintaining the vertical scroll behavior of the inner Column.
+            # The Row is used as a layout helper to center the 800px 
+            # wide reading container on large screens without affecting the 
+            # scrollable height of the inner reader_column.
             page.add(
                 ft.Row(
                     [reader_container],
@@ -167,7 +168,6 @@ async def main(page: ft.Page) -> None:
                 )
             )
 
-            # Load the first chapter by default
             await update_chapter_view(0)
 
         except Exception as e:
@@ -175,16 +175,17 @@ async def main(page: ft.Page) -> None:
             page.add(ft.Text(f"Error: {e}", color=ft.Colors.RED))
             page.update()
 
-    # Initial Loading State
+    # Initial bootstrapper UI
     page.add(
         ft.Column(
             [
                 ft.ProgressRing(width=40),
-                ft.Text("Loading metadata...", italic=True)
+                ft.Text("Loading...", italic=True)
             ],
             horizontal_alignment=ft.CrossAxisAlignment.CENTER
         )
     )
+
     page.run_task(load_content_task)
 
 if __name__ == "__main__":
