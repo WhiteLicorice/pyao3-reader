@@ -11,6 +11,7 @@ Converting raw web data into text components.
 - [x] Optimized reader with `ft.Markdown`.
 - [x] Custom `MarkdownStyleSheet` with Kindle-style blockquotes.
 - [x] Drawer-based chapter selection.
+- [ ] Swipe to scroll between chapters.
 
 ### Phase 2:
 Managing fics locally, inspired by the FFN "Download" feature.
