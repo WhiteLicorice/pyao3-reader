@@ -29,9 +29,9 @@ class FetcherService:
     def _sync_fetch_story(self, url: str) -> Ao3Story:
         self.adapter = adapters.getAdapter(self.config, url)
         # This performs the network request and parses the metadata page
+        # Need to hot load adapter
         self.adapter.extractChapterUrlsAndMetadata()
         
-        # Access the underlying story object from FanFicFare
         fff_story: Story = self.adapter.story
         
         def _split_meta(self, key: str) -> list[str]:

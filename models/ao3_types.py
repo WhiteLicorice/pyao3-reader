@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+
 @dataclass
 class Ao3Chapter:
     """Represents a single chapter in an AO3 story."""
