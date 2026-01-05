@@ -4,10 +4,10 @@ from typing import Optional
 
 from fanficfare import adapters
 from fanficfare.configurable import Configuration
-from fanficfare.adapters import base_adapter
+from fanficfare.adapters.base_adapter import BaseSiteAdapter
 from fanficfare.story import Story
 
-from .content_service import ContentService
+from services.content_service import ContentService
 from models.ao3_types import Ao3Story, Ao3Chapter
 from constants import AO3_DEFAULTS
 
@@ -19,7 +19,7 @@ class FetcherService:
         self.config = Configuration(["archiveofourown.org"], "html")
         settings = AO3_DEFAULTS
         self.config.read_string(settings) # magic method, ugh
-        self.adapter: Optional[base_adapter.BaseSiteAdapter] = None
+        self.adapter: Optional[BaseSiteAdapter] = None
         self.story: Optional[Ao3Story] = None
 
     async def fetch_story(self, url: str) -> Ao3Story:
